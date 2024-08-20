@@ -1,7 +1,11 @@
 # StuffPlussProject-ShinyApp
 
 Explanation of Stuff+ Model for Pitch Quality Evaluation
+
+aaronsmith1788.shinyapps.io/MLBStuffPlus/ 
+
 Introduction
+
 This project develops a comprehensive model for evaluating pitch quality in baseball using a metric called "Stuff+". The model aims to quantify the effectiveness of pitches based on various physical characteristics, providing a nuanced understanding of pitcher performance that goes beyond traditional statistics.
 
 Detailed Methodology
