@@ -21,6 +21,7 @@ EnhancedPrediction$Slugging_Pct <- round(EnhancedPrediction$Slugging_Pct, 3)
 # Get unique pitch types
 pitch_types <- c("All", unique(EnhancedPrediction$pitch_type))
 
+
 ui <- fluidPage(
   theme = shinytheme("flatly"),
   tags$head(
@@ -215,7 +216,17 @@ ui <- fluidPage(
                column(12,
                       div(class = "documentation-box model-doc",
                           h2("Explanation of Stuff+ Model for Pitch Quality Evaluation"),
-                          
+                          h3("GitHub"),
+                          p("Code for the xgboost model: ", 
+                            tags$a(href = "https://github.com/aasmith1788/StuffPlussProject-ShinyApp/blob/main/StuffPlusModelR.R", 
+                                   "StuffPlusModelR.R", 
+                                   target = "_blank")
+                          ),
+                          p("Code for the Shiny App: ", 
+                            tags$a(href = "https://github.com/aasmith1788/StuffPlussProject-ShinyApp/blob/main/app.R", 
+                                   "app.R", 
+                                   target = "_blank")
+                          ),
                           h3("Introduction"),
                           p("This project develops a comprehensive model for evaluating pitch quality in baseball using a metric called \"Stuff+\". The model aims to quantify the effectiveness of pitches based on various physical characteristics, providing a nuanced understanding of pitcher performance that goes beyond traditional statistics."),
                           
@@ -307,7 +318,9 @@ ui <- fluidPage(
                           h5("Slugging Percentage:"),
                           p("Moderate negative correlation (-0.489, R-squared: 0.239)."),
                           p("These correlations validate the Stuff+ metric by showing its strong relationships with key performance indicators."),
-                          
+                        
+                              
+                              
                           h3("Applications in Bullpen Evaluation and Pitcher Development"),
                           h5("Pitch Type Optimization:"),
                           p("Pitchers can experiment with different pitch types and variations during bullpen sessions. The Stuff+ model can help identify which pitch types are most effective for each individual pitcher, potentially uncovering hidden strengths or areas for improvement in their repertoire."),
@@ -318,7 +331,8 @@ ui <- fluidPage(
                             tags$li("Velocity: Velocity is not everything, but often times it can be the determining factor."),
                             tags$li("Movement: Adjusting grip or mechanics to enhance horizontal and vertical movement.")
                           ),
-                          h5("Progress Tracking:"),
+                          
+                
                           p("Over multiple bullpen sessions, pitchers can track their Stuff+ scores to monitor improvement. This data-driven approach allows for objective measurement of progress, complementing subjective assessments from coaches."),
                           h5("MLB-Level Benchmarking:"),
                           p("Since the model is trained on MLB data, it provides a benchmark for how a pitch might perform at the highest level. This is particularly valuable for minor league pitchers or prospects, offering insights into how their current 'stuff' compares to MLB standards."),
@@ -333,6 +347,7 @@ ui <- fluidPage(
     )
   )
 )
+
 
                           
                           
