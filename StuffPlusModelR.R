@@ -1,4 +1,3 @@
-
 # Install and load required packages
 packages <- c("xgboost", "ggplot2", "gridGraphics", "vip", "kableExtra", "dplyr", "knitr", "caret")
 new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
@@ -457,54 +456,6 @@ EnhancedPrediction <- FinalPrediction %>%
 
 # Save EnhancedPrediction to CSV in the working directory
 write.csv(EnhancedPrediction, file = "EnhancedPrediction.csv", row.names = FALSE)
-
-# Create function for top 10 tables
-create_enhanced_top_10_table <- function(data, pitch_types, caption) {
-  # Filter for the specified pitch types and pitchers with at least 50 pitches
-  qualified_pitchers <- data %>%
-    filter(pitch_type %in% pitch_types, Pitch_Count >= best_threshold)
-  
-  # Sort by Stuff+ and select top 10
-  top_10 <- qualified_pitchers %>%
-    arrange(desc(`Stuff+`)) %>%
-    head(10) %>%
-    select(player_name, pitch_type, `Stuff+`, Velocity, 
-           Horizantle_Movement, Vertical_Movement, Horizantle_Release, Verticle_Release, Arm_Slot, Extension,
-           Spin_Rate, Whiff_Rate, Exit_Velo, Batting_Avg, Slugging_Pct, Pitch_Count)
-  
-  # Create table
-  kable(top_10, caption = caption,
-        col.names = c("Player Name", "Pitch Type", "Stuff+", "Velocity", "Horizantle Movement", "Vertical Movement",
-                      "Horizantle Release","Verticle Release","Arm Slot", "Extension","Spin Rate","Whiff Rate","Exit Velo",
-                        "Batting Avg", "Slugging", "Pitch Count")) %>%
-    kable_styling()
-}
-
-# Create tables for each pitch type group
-tableFBs <- create_enhanced_top_10_table(EnhancedPrediction, 
-                                         c( "FF", "SI", "FC"), 
-                                         "Top 10 Stuff+ Fastballs (Min. 50 Pitches)")
-tableSLs <- create_enhanced_top_10_table(EnhancedPrediction, 
-                                         c("SL", "ST"), 
-                                         "Top 10 Stuff+ Sliders (Min. 50 Pitches)")
-tableCHs <- create_enhanced_top_10_table(EnhancedPrediction, 
-                                         c("CH", "FS", "SC", "FO"), 
-                                         "Top 10 Stuff+ Changeups (Min. 50 Pitches)")
-tableCBs <- create_enhanced_top_10_table(EnhancedPrediction, 
-                                         c("CU", "SV"), 
-                                         "Top 10 Stuff+ Curveballs (Min. 50 Pitches)")
-
-# Print tables
-print(tableFBs)
-print(tableSLs)
-print(tableCHs)
-print(tableCBs)
-
-# Save tables as HTML files
-writeLines(as.character(tableFBs), "enhanced_top_10_fastballs.html")
-writeLines(as.character(tableSLs), "enhanced_top_10_sliders.html")
-writeLines(as.character(tableCHs), "enhanced_top_10_changeups.html")
-writeLines(as.character(tableCBs), "enhanced_top_10_curveballs.html")
 
 # Print summary of overfitting checks
 cat("\nOverfitting Check Summary:\n")
