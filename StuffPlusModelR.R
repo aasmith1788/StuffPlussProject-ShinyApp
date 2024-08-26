@@ -1,3 +1,4 @@
+
 # Install and load required packages
 packages <- c("xgboost", "ggplot2", "gridGraphics", "vip", "kableExtra", "dplyr", "knitr", "caret")
 new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
@@ -16,6 +17,85 @@ LinearWeights <- read.csv("C:/Users/aasmi/OneDrive/StuffPlusModel/Linear Weights
 
 LinearWeights <- LinearWeights[c(1, 2)]
 LinearWeights <- LinearWeights[-c(25, 26, 27),]
+
+df_processing <- function(df_pyb) {
+  df <- df_pyb %>% as.data.frame()
+  
+  # Define the codes for different types of swings and whiffs
+  swing_code <- c('foul_bunt', 'foul', 'hit_into_play', 'swinging_strike', 'foul_tip',
+                  'swinging_strike_blocked', 'missed_bunt', 'bunt_foul_tip')
+  whiff_code <- c('swinging_strike', 'foul_tip', 'swinging_strike_blocked')
+  
+  # Create new columns in the data frame to indicate swing, whiff, in-zone, out-zone, and chase
+  df <- df %>%
+    mutate(
+      swing = description %in% swing_code,
+      whiff = description %in% whiff_code,
+      in_zone = zone < 10,
+      out_zone = zone > 10,
+      chase = !in_zone & swing == TRUE,
+      
+      # Convert the pitch type to a categorical variable (assuming it's not already)
+      pitch_type = as.factor(pitch_type),
+      
+      # Convert pfx_z and pfx_x from feet to inches
+      pfx_z = pfx_z * 12,
+      pfx_x = pfx_x * 12
+    )
+  
+  return(df)
+}
+df_grouping <- function(df) {
+  # Group the data frame by player_name and pitch type, then aggregate various statistics
+  df_group <- df %>%
+    group_by(player_name, pitch_type) %>%
+    summarise(
+      pitch = n(),  # Count of pitches
+      release_speed = mean(release_speed, na.rm = TRUE),  # Average release speed
+      pfx_z = mean(pfx_z, na.rm = TRUE),  # Average vertical movement
+      pfx_x = mean(pfx_x, na.rm = TRUE),  # Average horizontal movement
+      release_spin_rate = mean(release_spin_rate, na.rm = TRUE),  # Average spin rate
+      release_pos_x = mean(release_pos_x, na.rm = TRUE),  # Average horizontal release position
+      release_pos_z = mean(release_pos_z, na.rm = TRUE),  # Average vertical release position
+      release_extension = mean(release_extension, na.rm = TRUE),  # Average release extension
+      delta_run_exp = sum(delta_run_exp, na.rm = TRUE),  # Total change in run expectancy
+      swing = sum(swing, na.rm = TRUE),  # Total swings
+      whiff = sum(whiff, na.rm = TRUE),  # Total whiffs
+      in_zone = sum(in_zone, na.rm = TRUE),  # Total in-zone pitches
+      out_zone = sum(out_zone, na.rm = TRUE),  # Total out-of-zone pitches
+      chase = sum(chase, na.rm = TRUE),  # Total chases
+      xwoba = mean(estimated_woba_using_speedangle, na.rm = TRUE),  # Average expected wOBA
+      .groups = 'drop'
+    ) %>%
+    ungroup()
+  
+  # Calculate pitch usage as a percentage of total pitches for each player
+  df_group <- df_group %>%
+    group_by(player_name) %>%
+    mutate(pitch_usage = pitch / sum(pitch)) %>%
+    ungroup()
+  
+  # Calculate whiff rate as the ratio of whiffs to swings
+  df_group$whiff_rate <- df_group$whiff / df_group$swing
+  
+  # Calculate in-zone rate as the ratio of in-zone pitches to total pitches
+  df_group$in_zone_rate <- df_group$in_zone / df_group$pitch
+  
+  # Calculate chase rate as the ratio of chases to out-of-zone pitches
+  df_group$chase_rate <- df_group$chase / df_group$out_zone
+  
+  # Calculate delta run expectancy per 100 pitches
+  df_group$delta_run_exp_per_100 <- -df_group$delta_run_exp / df_group$pitch * 100
+  
+  # Sort the data frame by player_name and then by pitch usage in descending order
+  df_group <- df_group %>% 
+    arrange(player_name, desc(pitch_usage))
+  
+  return(df_group)
+}
+
+Grouped_Stats <- df_processing(StuffPlusTest)
+Grouped_Stats <- df_grouping(Grouped_Stats)
 
 combined_data <- rbind(StuffPlusTest)
 
@@ -328,6 +408,9 @@ FinalPrediction$xEEVScaledNegative <- FinalPrediction$xEEV - max(FinalPrediction
 FinalPrediction$ABSxEEVScaledNeg <- abs(FinalPrediction$xEEVScaledNegative)
 FinalPrediction$`Stuff+` <- (FinalPrediction$ABSxEEVScaledNeg / mean(FinalPrediction$ABSxEEVScaledNeg)) * 100
 
+# Save FinalPrediction as CSV
+write.csv(FinalPrediction, "FinalPrediction.csv", row.names = FALSE)
+
 # Evaluate model performance at different pitch count thresholds
 
 # Define the pitch count thresholds to evaluate
@@ -338,9 +421,10 @@ pitch_count_ranges <- list(
   "0-15" = c(0, 15),
   "15-30" = c(15, 30),
   "30-45" = c(30, 45),
-  "45-60" = c(45, 60)
+  "45-60" = c(45, 60),
+  "1" = c(1,2),
+  "10-11" = c(350, 400)
 )
-
 # Create lists to store results
 threshold_results <- list()
 range_results <- list()
@@ -422,30 +506,10 @@ cat("Best Threshold:", best_threshold,
 yearly_stats <- StuffPlusTest_new %>%
   group_by(player_name, pitch_type) %>%
   summarize(
-    Pitch_Count = n(),
-    Velocity = mean(release_speed, na.rm = TRUE),
-    Horizantle_Movement = mean(pfx_x, na.rm = TRUE),
-    Vertical_Movement = mean(pfx_z, na.rm = TRUE),
-    Horizantle_Release = mean(release_pos_x, na.rm = TRUE),
-    Verticle_Release = mean(release_pos_z, na.rm = TRUE),
-    Extension = mean(release_extension, na.rm = TRUE),
-    Spin_Rate = mean(release_spin_rate, na.rm = TRUE),
+    Pitch_Count_M = n(),
     Arm_Slot = mean(arm_slot, na.rm = TRUE),
     Exit_Velo = mean(launch_speed, na.rm = TRUE),
-    Whiff_Rate = sum(description %in% c("swinging_strike", "swinging_strike_blocked"), na.rm = TRUE) / 
-      sum(description %in% c("swinging_strike", "swinging_strike_blocked", "foul", "hit_into_play"), na.rm = TRUE),
-    
-    # Batting Average calculation
     Batting_Avg = sum(Event %in% c("single", "double", "triple", "home_run"), na.rm = TRUE) / n(),
-    
-    # Slugging Percentage calculation
-    Slugging_Pct = sum(case_when(
-      Event == "single" ~ 1,
-      Event == "double" ~ 2,
-      Event == "triple" ~ 3,
-      Event == "home_run" ~ 4,
-      TRUE ~ 0
-    ), na.rm = TRUE) / n(),
     
     .groups = "drop"
   )
@@ -453,6 +517,9 @@ yearly_stats <- StuffPlusTest_new %>%
 EnhancedPrediction <- FinalPrediction %>%
   select(player_name, pitch_type, `Stuff+`) %>%
   left_join(yearly_stats, by = c("player_name", "pitch_type"))
+
+EnhancedPrediction <- EnhancedPrediction %>%
+  left_join(Grouped_Stats, by = c("player_name", "pitch_type"))
 
 # Save EnhancedPrediction to CSV in the working directory
 write.csv(EnhancedPrediction, file = "EnhancedPrediction.csv", row.names = FALSE)
@@ -486,7 +553,7 @@ library(ggthemes)
 
 # Filter the data for pitch counts of 50 or more
 FilteredPrediction <- EnhancedPrediction %>%
-  filter(Pitch_Count >= best_threshold)
+  filter(Pitch_Count_M >= best_threshold)
 
 # Improved scatter plot function with enhanced Tufte style
 improved_plot_scatter <- function(df, x_var, y_var, title) {
@@ -517,20 +584,29 @@ improved_plot_scatter <- function(df, x_var, y_var, title) {
 
 # Create improved plots
 plot1 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "Batting_Avg", "Stuff+ vs Batting Average")
-plot2 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "Slugging_Pct", "Stuff+ vs Slugging Percentage")
-plot3 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "Exit_Velo", "Stuff+ vs Exit Velocity")
-plot4 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "Whiff_Rate", "Stuff+ vs Whiff Rate")
+plot2 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "Exit_Velo", "Stuff+ vs Exit Velocity")
+plot3 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "whiff_rate", "Stuff+ vs Whiff Rate")
+plot4 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "delta_run_exp_per_100", "Stuff+ vs delta_run_exp_per_100")
+plot5 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "chase_rate", "Stuff+ vs chase_rate")
+plot6 <- improved_plot_scatter(FilteredPrediction, "Stuff+", "xwoba", "Stuff+ vs xwoba")
 
 # Display each plot individually
 print(plot1)
 print(plot2)
 print(plot3)
 print(plot4)
+print(plot5)
+print(plot6)
+
 
 # Save each plot separately
 ggsave("Stuff+_vs_Batting_Avg_50plus_EnhancedTufte.png", plot1, width = 8, height = 6, dpi = 300)
-ggsave("Stuff+_vs_Slugging_Pct_50plus_EnhancedTufte.png", plot2, width = 8, height = 6, dpi = 300)
-ggsave("Stuff+_vs_Exit_Velo_50plus_EnhancedTufte.png", plot3, width = 8, height = 6, dpi = 300)
-ggsave("Stuff+_vs_Whiff_Rate_50plus_EnhancedTufte.png", plot4, width = 8, height = 6, dpi = 300)
+ggsave("Stuff+_vs_Exit_Velo_50plus_EnhancedTufte.png", plot2, width = 8, height = 6, dpi = 300)
+ggsave("Stuff+_vs_Whiff_Rate_50plus_EnhancedTufte.png", plot3, width = 8, height = 6, dpi = 300)
+ggsave("Stuff+_vs_chase_rate_50plus_EnhancedTufte.png", plot4, width = 8, height = 6, dpi = 300)
+ggsave("Stuff+_vs_chase_rate_50plus_EnhancedTufte.png", plot5, width = 8, height = 6, dpi = 300)
+ggsave("Stuff+_vs_xwoba_50plus_EnhancedTufte.png", plot6, width = 8, height = 6, dpi = 300)
+
+
 
 cat("\nEnhanced Tufte-style correlation plots with Correlation and R-squared (for pitches with 50+ count) have been displayed and saved as separate PNG files in your working directory.")
